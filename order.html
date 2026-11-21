@@ -1,0 +1,1635 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>nice-cup-uy — Self-Order Kopi &amp; Kasir Digital</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+            serif: ['"Playfair Display"', 'Georgia', 'serif'],
+          },
+          colors: {
+            espresso: '#3B2314',
+            espressoDark: '#24140A',
+            caramel: '#D97706',
+            caramelDark: '#B45309',
+            cream: '#FDF8F3',
+            latte: '#F5ECE1',
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background-color: #FDF8F3;
+      color: #3B2314;
+      overflow-x: hidden;
+    }
+    .font-display {
+      font-family: 'Playfair Display', Georgia, serif;
+    }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.35); opacity: 0.55; }
+    }
+    .animate-pulse-dot {
+      animation: pulseDot 1.5s ease-in-out infinite;
+    }
+    #modalRedirectQrBox img,
+    #modalRedirectQrBox canvas {
+      display: block;
+      margin: 0 auto;
+      width: 220px !important;
+      height: 220px !important;
+      border-radius: 12px;
+      background-color: #FFFFFF;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-cream text-espresso antialiased">
+  <div id="toastContainer" class="fixed top-20 right-4 z-[85] flex flex-col gap-2.5 max-w-sm w-[calc(100vw-2rem)] pointer-events-none"></div>
+
+  <header class="sticky top-0 z-40 bg-espresso text-cream border-b border-amber-900/30 shadow-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
+      <button type="button" onclick="navigateTo('menu')" class="flex items-center gap-2.5 text-left group shrink-0">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-400 to-caramelDark text-espressoDark flex items-center justify-center shadow-sm group-hover:scale-105 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zm4-4v2m4-2v2m4-2v2" />
+          </svg>
+        </div>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <span class="font-display font-extrabold text-base sm:text-lg tracking-tight text-white">nice-cup-uy</span>
+            <span class="px-1.5 py-0.5 text-[10px] font-extrabold uppercase rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">BUKA</span>
+          </div>
+          <p class="text-[11px] text-amber-200/80 hidden sm:block">Self-Order Kopi &amp; Kasir Digital</p>
+        </div>
+      </button>
+
+      <nav class="flex items-center gap-1.5 sm:gap-2.5">
+        <button id="navBtnMenu" type="button" onclick="navigateTo('menu')" class="px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-caramel text-espressoDark shadow-sm transition flex items-center gap-1.5">
+          <span>Menu &amp; Kasir</span>
+        </button>
+
+        <button type="button" onclick="openCartDrawer()" class="relative px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-espressoDark hover:bg-amber-950 text-cream border border-amber-500/30 transition flex items-center gap-1.5">
+          <span>Keranjang</span>
+          <span id="cartBadgeCount" class="ml-0.5 px-1.5 py-0.5 text-[11px] font-extrabold rounded-full bg-caramel text-espressoDark min-w-[20px] text-center">0</span>
+        </button>
+
+        <button id="navBtnAdmin" type="button" onclick="requestAdminAccess()" class="relative px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-latte hover:bg-amber-100 text-espresso border border-amber-900/20 transition flex items-center gap-1.5">
+          <span>Halaman Admin</span>
+          <span id="adminOrderBadge" class="hidden -top-1.5 -right-1.5 absolute px-1.5 py-0.5 text-[10px] font-extrabold rounded-full bg-red-600 text-white shadow">0</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+    <section id="pageMenu" class="space-y-6">
+      <div class="rounded-3xl bg-gradient-to-r from-espressoDark via-espresso to-amber-950 text-cream p-6 sm:p-8 shadow-lg border border-amber-500/20 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+        <div class="space-y-2 max-w-2xl">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-caramel/20 text-amber-300 border border-amber-400/30 text-xs font-bold tracking-wide">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse-dot"></span>
+            Pesan Menu &bull; QR Link Bayar HP &bull; Konfirmasi Admin
+          </span>
+          <h1 class="font-display text-2xl sm:text-4xl font-extrabold leading-tight text-white">
+            Seduhan Hangat &amp; Segar dari <span class="text-amber-400">nice-cup-uy</span>
+          </h1>
+          <p class="text-xs sm:text-sm text-amber-100/85 leading-relaxed">
+            Pilih menu favorit Anda lalu klik bayar untuk menampilkan <strong>QR Link Pembayaran</strong> yang bisa di-scan HP customer dan otomatis membuka pesanan di halaman bayar.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap sm:flex-nowrap items-center gap-3 shrink-0">
+          <button type="button" onclick="openCartDrawer()" class="w-full sm:w-auto px-5 py-3 rounded-2xl bg-caramel hover:bg-caramelDark text-espressoDark font-extrabold text-sm shadow-lg transition flex items-center justify-center gap-2">
+            <span>Lihat Keranjang</span>
+            <span id="heroCartCount" class="px-2 py-0.5 rounded-full bg-espressoDark text-amber-300 text-xs">0</span>
+          </button>
+          <button id="btnLatestOrderQrModal" type="button" onclick="openLatestOrderQrModal()" class="hidden w-full sm:w-auto px-4 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm shadow transition items-center justify-center gap-1.5">
+            <span id="latestOrderBtnLabel">QR Halaman Bayar</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="activeOrderTrackerCard" class="hidden rounded-2xl bg-white border border-amber-900/15 p-4 sm:p-5 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="text-xs font-extrabold uppercase tracking-wider text-espresso/60">Pesanan Terakhir</span>
+            <span id="trackerOrderNumber" class="font-mono font-extrabold text-sm text-espresso">#CUPCUY-001</span>
+            <span id="trackerStatusBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border bg-amber-100 text-amber-900 border-amber-300">Menunggu Bukti Bayar</span>
+          </div>
+          <p id="trackerOrderSummary" class="text-xs text-espresso/75"></p>
+          <p id="trackerOrderUrlText" class="text-[11px] font-mono text-espresso/60 break-all"></p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 shrink-0">
+          <button type="button" onclick="openPaymentLinkModal(currentTrackedOrderNumber)" class="px-3.5 py-2 rounded-xl bg-caramel hover:bg-caramelDark text-espressoDark text-xs font-extrabold transition">
+            Tampilkan QR Bayar
+          </button>
+          <button type="button" onclick="copyPaymentLink(currentTrackedOrderNumber)" class="px-3.5 py-2 rounded-xl bg-latte hover:bg-amber-100 text-espresso border border-amber-900/15 text-xs font-bold transition">
+            Salin Link
+          </button>
+          <button type="button" onclick="openPaymentPageForOrder(currentTrackedOrderNumber, false)" class="px-3.5 py-2 rounded-xl bg-espresso hover:bg-espressoDark text-white text-xs font-extrabold transition">
+            Ke Halaman Bayar
+          </button>
+        </div>
+      </div>
+
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div id="categoryTabs" class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1"></div>
+        <div class="relative w-full sm:w-72 shrink-0">
+          <input id="searchMenuInput" type="text" oninput="renderMenuCatalog()" placeholder="Cari kopi, matcha, croissant..." class="w-full px-4 py-2.5 rounded-2xl bg-white border border-amber-900/15 text-sm text-espresso placeholder:text-espresso/45 focus:outline-none focus:ring-2 focus:ring-caramel shadow-2xs" />
+        </div>
+      </div>
+
+      <div id="menuGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
+    </section>
+
+    <section id="pageAdmin" class="hidden space-y-6">
+      <div class="bg-white rounded-3xl border border-amber-900/15 p-5 sm:p-6 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 flex-wrap">
+            <span class="px-2.5 py-0.5 rounded-lg bg-espresso text-amber-300 text-[11px] font-extrabold uppercase tracking-wider">Dashboard Admin</span>
+            <span id="liveSyncStatusText" class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot"></span>
+              Live Sync Aktif
+            </span>
+          </div>
+          <h2 class="font-display text-2xl sm:text-3xl font-extrabold text-espresso mt-1">Operasional nice-cup-uy</h2>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="adminTabOrders" type="button" onclick="switchAdminSubTab('orders')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold bg-espresso text-white shadow-sm transition">
+            <span>Pesanan Masuk</span>
+          </button>
+          <button id="adminTabMenus" type="button" onclick="switchAdminSubTab('menus')" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-latte hover:bg-amber-100 text-espresso border border-amber-900/15 transition">
+            <span>Kelola Menu &amp; Foto</span>
+          </button>
+          <button type="button" onclick="lockAdminSession()" class="px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 transition">
+            <span>Kunci</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        <div class="bg-white rounded-2xl border border-amber-900/15 p-4 sm:p-5 shadow-2xs">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-espresso/55">Pendapatan Lunas</p>
+          <p id="statRevenue" class="font-display text-xl sm:text-2xl font-extrabold text-espresso mt-1">Rp 0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-amber-900/15 p-4 sm:p-5 shadow-2xs">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-amber-700">Menunggu Bukti Bayar</p>
+          <p id="statWaitingProof" class="font-display text-xl sm:text-2xl font-extrabold text-amber-700 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-amber-900/15 p-4 sm:p-5 shadow-2xs">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-purple-700">Sedang Dicek Admin</p>
+          <p id="statCheckingProof" class="font-display text-xl sm:text-2xl font-extrabold text-purple-700 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-amber-900/15 p-4 sm:p-5 shadow-2xs">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-sky-700">Sedang Diproses / Dibuat</p>
+          <p id="statProcessing" class="font-display text-xl sm:text-2xl font-extrabold text-sky-700 mt-1">0</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-amber-900/15 p-4 sm:p-5 shadow-2xs col-span-2 sm:col-span-1">
+          <p class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Selesai</p>
+          <p id="statDone" class="font-display text-xl sm:text-2xl font-extrabold text-emerald-700 mt-1">0</p>
+        </div>
+      </div>
+
+      <div id="adminPanelOrders" class="space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button type="button" onclick="setAdminOrderFilter('Semua')" data-order-filter="Semua" class="order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-espresso text-white">Semua</button>
+            <button type="button" onclick="setAdminOrderFilter('Menunggu Bukti Bayar')" data-order-filter="Menunggu Bukti Bayar" class="order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/15">Menunggu Bukti Bayar</button>
+            <button type="button" onclick="setAdminOrderFilter('Sedang Dicek Admin')" data-order-filter="Sedang Dicek Admin" class="order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/15">Sedang Dicek Admin</button>
+            <button type="button" onclick="setAdminOrderFilter('Sedang Diproses')" data-order-filter="Sedang Diproses" class="order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/15">Sedang Diproses</button>
+            <button type="button" onclick="setAdminOrderFilter('Sedang Dibuat')" data-order-filter="Sedang Dibuat" class="order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/15">Sedang Dibuat</button>
+            <button type="button" onclick="setAdminOrderFilter('Selesai')" data-order-filter="Selesai" class="order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/15">Selesai</button>
+          </div>
+          <button type="button" onclick="clearFinishedOrders()" class="text-xs font-bold text-red-600 hover:underline">
+            Bersihkan Pesanan Selesai
+          </button>
+        </div>
+
+        <div id="adminOrdersGrid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+      </div>
+
+      <div id="adminPanelMenus" class="hidden grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-white rounded-3xl border border-amber-900/15 p-5 sm:p-6 shadow-sm h-fit">
+          <h3 id="menuFormHeading" class="font-display text-lg font-extrabold text-espresso mb-4">Tambah Menu Baru</h3>
+          <form onsubmit="handleMenuFormSubmit(event)" class="space-y-4">
+            <input type="hidden" id="editMenuId" />
+            <input type="hidden" id="menuPhotoData" />
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-espresso/70 mb-1.5">Foto Produk</label>
+              <div class="relative h-40 rounded-2xl bg-latte border-2 border-dashed border-amber-900/25 overflow-hidden flex items-center justify-center">
+                <img id="menuPhotoPreviewImg" src="" alt="Preview Foto Menu" class="hidden w-full h-full object-cover" />
+                <div id="menuPhotoPlaceholder" class="text-center p-4">
+                  <p class="text-xs font-bold text-espresso">Klik untuk pilih foto dari perangkat</p>
+                  <p class="text-[11px] text-espresso/60 mt-0.5">JPG, PNG, WEBP (otomatis dikompres)</p>
+                </div>
+                <input type="file" accept="image/*" onchange="handleProductPhotoFile(event)" class="absolute inset-0 opacity-0 cursor-pointer" title="Unggah Foto Produk" />
+                <button id="btnRemoveMenuPhoto" type="button" onclick="clearProductPhoto()" class="hidden absolute top-2 right-2 px-2.5 py-1 rounded-lg bg-red-600 text-white text-[11px] font-bold shadow z-10">
+                  Hapus Foto
+                </button>
+              </div>
+              <input id="menuPhotoUrlInput" type="url" oninput="handleProductPhotoUrl(this.value)" placeholder="Atau tempel URL foto produk (https://...)" class="mt-2 w-full px-3.5 py-2 rounded-xl bg-cream border border-amber-900/15 text-xs focus:outline-none focus:ring-2 focus:ring-caramel" />
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-espresso/70 mb-1">Nama Menu</label>
+              <input id="menuNameInput" type="text" required placeholder="Contoh: Kopi Susu Gula Aren" class="w-full px-3.5 py-2.5 rounded-xl bg-cream border border-amber-900/15 text-sm focus:outline-none focus:ring-2 focus:ring-caramel" />
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-espresso/70 mb-1">Kategori</label>
+                <select id="menuCategoryInput" class="w-full px-3 py-2.5 rounded-xl bg-cream border border-amber-900/15 text-sm focus:outline-none focus:ring-2 focus:ring-caramel">
+                  <option value="Espresso Based">Espresso Based</option>
+                  <option value="Manual Brew">Manual Brew</option>
+                  <option value="Non-Coffee">Non-Coffee</option>
+                  <option value="Pastry & Snacks">Pastry &amp; Snacks</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-espresso/70 mb-1">Harga (Rp)</label>
+                <input id="menuPriceInput" type="number" required min="1000" step="500" placeholder="22000" class="w-full px-3.5 py-2.5 rounded-xl bg-cream border border-amber-900/15 text-sm focus:outline-none focus:ring-2 focus:ring-caramel" />
+              </div>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-espresso/70 mb-1">Status Stok</label>
+              <select id="menuStockInput" class="w-full px-3.5 py-2.5 rounded-xl bg-cream border border-amber-900/15 text-sm focus:outline-none focus:ring-2 focus:ring-caramel">
+                <option value="true">Tersedia</option>
+                <option value="false">Habis</option>
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-bold uppercase tracking-wider text-espresso/70 mb-1">Deskripsi Menu</label>
+              <textarea id="menuDescInput" rows="2" required placeholder="Catatan rasa dan bahan utama..." class="w-full px-3.5 py-2 rounded-xl bg-cream border border-amber-900/15 text-sm focus:outline-none focus:ring-2 focus:ring-caramel"></textarea>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button id="btnCancelEditMenu" type="button" onclick="resetMenuEditorForm()" class="hidden px-4 py-2.5 rounded-xl bg-latte text-espresso font-bold text-xs sm:text-sm">Batal</button>
+              <button type="submit" class="flex-1 py-2.5 px-4 rounded-xl bg-caramel hover:bg-caramelDark text-espressoDark font-extrabold text-xs sm:text-sm shadow transition">
+                Simpan Menu
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <div class="lg:col-span-7 bg-white rounded-3xl border border-amber-900/15 p-5 sm:p-6 shadow-sm">
+          <div class="flex items-center justify-between gap-2 mb-4">
+            <h3 class="font-display text-lg font-extrabold text-espresso">Daftar Menu (<span id="adminMenuCountLabel">0</span>)</h3>
+            <button type="button" onclick="resetDefaultMenus()" class="text-xs font-bold text-caramelDark hover:underline">Pulihkan Menu Bawaan</button>
+          </div>
+          <div id="adminMenuList" class="divide-y divide-amber-900/10"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="cartDrawer" class="fixed inset-0 z-50 hidden">
+    <div onclick="closeCartDrawer()" class="absolute inset-0 bg-espressoDark/60 backdrop-blur-xs"></div>
+    <aside class="relative ml-auto w-full max-w-md h-full bg-white shadow-2xl border-l border-amber-900/15 flex flex-col">
+      <div class="px-5 py-4 bg-espresso text-cream flex items-center justify-between">
+        <h3 class="font-display font-extrabold text-lg">Keranjang Pesanan</h3>
+        <button type="button" onclick="closeCartDrawer()" class="w-8 h-8 rounded-xl bg-espressoDark hover:bg-amber-950 text-cream flex items-center justify-center">&times;</button>
+      </div>
+      <div id="cartItemsContainer" class="flex-1 overflow-y-auto p-4 space-y-3"></div>
+      <div class="p-4 sm:p-5 bg-cream border-t border-amber-900/15 space-y-3.5">
+        <div class="grid grid-cols-2 gap-2">
+          <button id="btnServiceDineIn" type="button" onclick="setServiceType('Dine In')" class="py-2 px-3 rounded-xl text-xs font-extrabold bg-espresso text-white border border-espresso transition">Dine In (Di Tempat)</button>
+          <button id="btnServiceTakeAway" type="button" onclick="setServiceType('Take Away')" class="py-2 px-3 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/20 transition">Take Away (Bawa Pulang)</button>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold uppercase tracking-wider text-espresso/65 mb-1">Nama Pelanggan / Nomor Meja</label>
+          <input id="checkoutCustomerInput" type="text" placeholder="Contoh: Raka - Meja 03" class="w-full px-3.5 py-2.5 rounded-xl bg-white border border-amber-900/20 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-caramel" />
+        </div>
+        <div class="space-y-1 text-xs pt-1">
+          <div class="flex justify-between text-espresso/70"><span>Subtotal</span><span id="cartSubtotalDisplay" class="font-semibold">Rp 0</span></div>
+          <div class="flex justify-between text-espresso/70"><span>Pajak &amp; Layanan (10%)</span><span id="cartTaxDisplay" class="font-semibold">Rp 0</span></div>
+          <div class="flex justify-between text-base font-extrabold text-espresso pt-1.5 border-t border-amber-900/15"><span>Total Bayar</span><span id="cartGrandTotalDisplay" class="text-caramelDark">Rp 0</span></div>
+        </div>
+        <button id="btnBuyAndPayQris" type="button" onclick="createOrderAndShowRedirectQr()" disabled class="w-full py-3.5 px-4 rounded-2xl bg-caramel hover:bg-caramelDark disabled:opacity-45 disabled:pointer-events-none text-espressoDark font-extrabold text-sm shadow-lg transition">
+          Klik untuk Bayar &amp; Tampilkan QR
+        </button>
+      </div>
+    </aside>
+  </div>
+
+  <div id="paymentLinkModal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4 overflow-y-auto">
+    <div onclick="closePaymentLinkModal()" class="fixed inset-0 bg-espressoDark/75 backdrop-blur-xs"></div>
+    <div class="relative bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-amber-900/20 space-y-4 my-auto">
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 text-[11px] font-extrabold">Scan untuk Membuka Halaman Bayar</span>
+          <h3 class="font-display text-xl font-extrabold text-espresso mt-1">Pesanan <span id="modalOrderNumber" class="font-mono">#CUPCUY-001</span></h3>
+        </div>
+        <button type="button" onclick="closePaymentLinkModal()" class="w-8 h-8 rounded-xl bg-latte hover:bg-amber-100 text-espresso font-bold flex items-center justify-center shrink-0">&times;</button>
+      </div>
+
+      <div class="flex items-center justify-between gap-2 bg-cream border border-amber-900/15 rounded-2xl px-3.5 py-2.5">
+        <div>
+          <span class="text-[11px] font-bold text-espresso/65 block">Status Live Pesanan:</span>
+          <span id="modalOrderTotalLabel" class="font-display text-base font-extrabold text-espresso">Rp 0</span>
+        </div>
+        <span id="modalLiveOrderStatus" class="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border bg-amber-100 text-amber-900 border-amber-300">Menunggu Bukti Bayar</span>
+      </div>
+
+      <div class="bg-latte/75 rounded-2xl p-5 text-center space-y-3 border border-amber-900/10">
+        <div class="space-y-1">
+          <span class="inline-block px-3 py-0.5 rounded-full bg-espresso text-amber-300 text-[10px] font-extrabold uppercase tracking-wider">QR Link Pembayaran HP</span>
+          <p class="text-sm font-extrabold text-espresso">Scan Menggunakan Kamera HP</p>
+          <p class="text-xs text-espresso/75">Pesanan <span id="modalQrOrderCodeLabel" class="font-mono font-bold text-espresso">#CUPCUY-001</span> otomatis terbuka di halaman bayar HP.</p>
+        </div>
+
+        <div class="bg-white p-3.5 rounded-2xl border border-amber-900/15 inline-flex items-center justify-center mx-auto shadow-xs">
+          <div id="modalRedirectQrBox" aria-label="QR Code Menuju Halaman Pembayaran" class="w-[220px] h-[220px] flex items-center justify-center bg-white"></div>
+        </div>
+      </div>
+
+      <div class="bg-cream border border-amber-900/15 rounded-2xl p-3 space-y-2">
+        <p id="modalPaymentUrlText" class="text-[11px] font-mono text-espresso break-all select-all"></p>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" onclick="copyPaymentLink(modalTargetOrderNumber)" class="py-2.5 px-3 rounded-xl bg-latte hover:bg-amber-100 text-espresso border border-amber-900/15 text-xs font-extrabold transition">Salin Link</button>
+          <button type="button" onclick="openPaymentPageForOrder(modalTargetOrderNumber, false)" class="py-2.5 px-3 rounded-xl bg-caramel hover:bg-caramelDark text-espressoDark text-xs font-extrabold transition">Lanjut ke Halaman Bayar</button>
+        </div>
+        <button type="button" onclick="closePaymentLinkModal()" class="w-full py-2.5 px-3 rounded-xl bg-espresso hover:bg-espressoDark text-white text-xs font-bold transition">Tutup</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="proofPreviewModal" class="fixed inset-0 z-[75] hidden items-center justify-center p-4">
+    <div onclick="closeProofPreviewModal()" class="fixed inset-0 bg-espressoDark/80 backdrop-blur-xs"></div>
+    <div class="relative bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl border border-amber-900/20 space-y-3.5">
+      <div class="flex items-center justify-between">
+        <h3 id="proofModalTitle" class="font-display text-lg font-extrabold text-espresso">Bukti Pembayaran</h3>
+        <button type="button" onclick="closeProofPreviewModal()" class="w-8 h-8 rounded-xl bg-latte hover:bg-amber-100 text-espresso font-bold flex items-center justify-center">&times;</button>
+      </div>
+      <div class="rounded-2xl bg-latte p-2 border border-amber-900/15 max-h-[65vh] overflow-auto flex items-center justify-center">
+        <img id="proofModalImg" src="" alt="Bukti Transfer Customer" class="max-h-[58vh] w-auto object-contain rounded-xl" />
+      </div>
+      <p id="proofModalMeta" class="text-xs text-espresso/70 text-center"></p>
+    </div>
+  </div>
+
+  <div id="adminPinModal" class="fixed inset-0 z-[70] hidden items-center justify-center p-4">
+    <div onclick="closeAdminPinModal()" class="fixed inset-0 bg-espressoDark/75 backdrop-blur-xs"></div>
+    <div class="relative bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-amber-900/20 text-center space-y-4">
+      <h3 class="font-display text-xl font-extrabold text-espresso">Masuk Halaman Admin</h3>
+      <form onsubmit="submitAdminPin(event)" class="space-y-3">
+        <input id="adminPinInput" type="password" inputmode="numeric" maxlength="6" placeholder="PIN Default: 1234" class="w-full text-center font-mono text-xl tracking-[0.35em] py-2.5 px-4 rounded-2xl bg-cream border-2 border-amber-900/20 focus:outline-none focus:border-caramel" />
+        <p id="adminPinError" class="hidden text-xs font-bold text-red-600">PIN salah. Silakan coba lagi.</p>
+        <div class="flex items-center justify-between text-[11px] text-espresso/65 pt-0.5">
+          <span>PIN Bawaan: <strong class="font-mono text-espresso">1234</strong></span>
+          <button type="button" onclick="fillDefaultAdminPin()" class="font-bold text-caramelDark hover:underline">Isi PIN 1234</button>
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button type="button" onclick="closeAdminPinModal()" class="flex-1 py-2.5 rounded-xl bg-latte hover:bg-amber-100 text-espresso font-bold text-xs sm:text-sm">Batal</button>
+          <button type="submit" class="flex-1 py-2.5 rounded-xl bg-caramel hover:bg-caramelDark text-espressoDark font-extrabold text-xs sm:text-sm shadow">Buka Admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="mt-auto py-5 border-t border-amber-900/10 bg-white text-center text-xs text-espresso/60">
+    <p class="font-bold text-espresso">nice-cup-uy &bull; Self-Order Coffee &amp; Kasir</p>
+    <p class="mt-0.5">Link Pembayaran: <code id="footerPaymentUrlCode" class="font-semibold text-espresso"></code> &bull; PIN Admin: <span class="font-mono font-bold text-caramelDark">1234</span></p>
+  </footer>
+
+  <script>
+    // =======================================================================
+    // KONFIGURASI UTAMA (UBAH SESUAI LINK & FILE ANDA)
+    // =======================================================================
+    const PAYMENT_PAGE_URL = 'https://nicecupcuy.github.io/pembayaran/bayar';
+    const QRIS_IMAGE_FILE = 'QRISS.jpeg';
+    // Opsional: isi URL Firebase Realtime Database (tanpa garis miring di akhir) agar live sync lintas HP:
+    // Contoh: 'https://nice-cup-uy-default-rtdb.asia-southeast1.firebasedatabase.app'
+    const LIVE_SYNC_URL = '';
+
+    const CHANNEL_NAME = 'nice_cup_uy_live_channel';
+    const ADMIN_DEFAULT_PIN = '1234';
+    const CATEGORIES = ['Semua', 'Espresso Based', 'Manual Brew', 'Non-Coffee', 'Pastry & Snacks'];
+
+    const INITIAL_MENUS = [
+      { id: 'ncu-m1', name: 'Kopi Susu Gula Aren nice-cup-uy', category: 'Espresso Based', price: 22000, image: 'https://images.unsplash.com/photo-1541167760496-1628856ab772?auto=format&fit=crop&w=600&q=80', desc: 'Espresso house blend berpadu susu segar dan gula aren pilihan.', available: true },
+      { id: 'ncu-m2', name: 'Caramel Latte Signature', category: 'Espresso Based', price: 26000, image: 'https://images.unsplash.com/photo-1461023058943-07fcbe16d735?auto=format&fit=crop&w=600&q=80', desc: 'Racikan latte lembut dengan sentuhan karamel gurih manis.', available: true },
+      { id: 'ncu-m3', name: 'Americano Iced Roast', category: 'Espresso Based', price: 18000, image: 'https://images.unsplash.com/photo-1517701604599-bb29b565090c?auto=format&fit=crop&w=600&q=80', desc: 'Double espresso bersih dan menyegarkan dengan es batu kristal.', available: true },
+      { id: 'ncu-m4', name: 'V60 Single Origin Brew', category: 'Manual Brew', price: 25000, image: 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=600&q=80', desc: 'Seduhan pour-over V60 dengan karakter aroma buah dan cokelat.', available: true },
+      { id: 'ncu-m5', name: 'Creamy Matcha Latte', category: 'Non-Coffee', price: 27000, image: 'https://images.unsplash.com/photo-1515823064-d6e0c04616a7?auto=format&fit=crop&w=600&q=80', desc: 'Matcha hijau pekat dikocok halus bersama susu dingin.', available: true },
+      { id: 'ncu-m6', name: 'Classic Dark Choco', category: 'Non-Coffee', price: 24000, image: 'https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?auto=format&fit=crop&w=600&q=80', desc: 'Cokelat hitam kaya rasa, pas dinikmati dingin maupun hangat.', available: true },
+      { id: 'ncu-m7', name: 'Butter Croissant', category: 'Pastry & Snacks', price: 21000, image: 'https://images.unsplash.com/photo-1555507036-ab1f4038808a?auto=format&fit=crop&w=600&q=80', desc: 'Pastry berlapis renyah di luar dan lembut beraroma mentega.', available: true },
+      { id: 'ncu-m8', name: 'Cinnamon Churros Bites', category: 'Pastry & Snacks', price: 19000, image: 'https://images.unsplash.com/photo-1624371414361-e670edf4898d?auto=format&fit=crop&w=600&q=80', desc: 'Churros hangat bertabur gula kayu manis untuk teman ngopi.', available: true },
+    ];
+
+    const INITIAL_ORDERS = [
+      {
+        orderNumber: '#CUPCUY-001',
+        accessToken: 'tok_cupcuy001_seed9a4f',
+        customerName: 'Nadia - Meja 02',
+        serviceType: 'Dine In',
+        items: [
+          { menuId: 'ncu-m1', name: 'Kopi Susu Gula Aren nice-cup-uy', price: 22000, qty: 1, note: 'Less Sugar' },
+          { menuId: 'ncu-m7', name: 'Butter Croissant', price: 21000, qty: 1, note: '' },
+        ],
+        subtotal: 43000,
+        tax: 4300,
+        total: 47300,
+        paymentMethod: 'QRIS',
+        qrisImageFile: QRIS_IMAGE_FILE,
+        status: 'Menunggu Bukti Bayar',
+        proofImage: '',
+        proofUploadedAt: '',
+        proofSenderNote: '',
+        createdAt: '10:15 WIB',
+        processedAt: '',
+      },
+    ];
+
+    const STORAGE_KEYS = {
+      menus: 'nice_cup_uy_menus_v1',
+      orders: 'nice_cup_uy_orders_v1',
+      counter: 'nice_cup_uy_order_seq_v1',
+      lastOrder: 'nice_cup_uy_last_order_v1',
+      qrisFile: 'nice_cup_uy_qris_file_v1',
+    };
+
+    let liveChannel = null;
+    let pollingInterval = null;
+    let lastSyncedSnapshot = '';
+    let menus = [];
+    let orders = [];
+    let orderSeq = 2;
+    let cart = [];
+    let serviceType = 'Dine In';
+    let activeCategory = 'Semua';
+    let activeAdminFilter = 'Semua';
+    let isAdminUnlocked = false;
+    let currentTrackedOrderNumber = '';
+    let modalTargetOrderNumber = '';
+
+    function encodeOrderPayload(orderObj) {
+      if (!orderObj) return '';
+      try {
+        const compact = {
+          o: orderObj.orderNumber,
+          c: orderObj.customerName,
+          s: orderObj.serviceType,
+          sub: orderObj.subtotal,
+          tax: orderObj.tax,
+          tot: orderObj.total,
+          q: orderObj.qrisImageFile || QRIS_IMAGE_FILE,
+          it: (orderObj.items || []).map((i) => ({
+            n: i.name,
+            p: i.price,
+            q: i.qty,
+            nt: i.note || '',
+          })),
+        };
+        const jsonStr = JSON.stringify(compact);
+        const utf8Bytes = new TextEncoder().encode(jsonStr);
+        let binary = '';
+        utf8Bytes.forEach((b) => { binary += String.fromCharCode(b); });
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      } catch (err) {
+        return '';
+      }
+    }
+
+    function extractMaxOrderSeq(orderList) {
+      if (!Array.isArray(orderList)) return 1;
+      let maxSeq = 1;
+      orderList.forEach((ord) => {
+        const rawCode = String(ord && ord.orderNumber ? ord.orderNumber : '').trim();
+        const match = rawCode.match(/^#CUPCUY-(\d+)$/i);
+        if (match) {
+          const parsed = parseInt(match[1], 10);
+          if (Number.isFinite(parsed) && parsed > maxSeq) maxSeq = parsed;
+        }
+      });
+      return maxSeq;
+    }
+
+    function formatCupcuyCode(seqValue) {
+      return `#CUPCUY-${String(Math.max(1, Math.floor(Number(seqValue) || 1))).padStart(3, '0')}`;
+    }
+
+    function generateOrderAccessToken(orderCode) {
+      const slug = String(orderCode || 'ORD').replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+      return `tok_${slug}_${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    function ensureOrderAccessToken(orderObj) {
+      if (!orderObj) return '';
+      if (!orderObj.accessToken) orderObj.accessToken = generateOrderAccessToken(orderObj.orderNumber);
+      return orderObj.accessToken;
+    }
+
+    function isOrderCodeDuplicate(candidateCode) {
+      const normalized = String(candidateCode || '').trim().toUpperCase();
+      if (!normalized) return true;
+      if (orders.some((o) => String(o.orderNumber || '').trim().toUpperCase() === normalized)) return true;
+      try {
+        const storedOrders = JSON.parse(localStorage.getItem(STORAGE_KEYS.orders));
+        if (Array.isArray(storedOrders) && storedOrders.some((o) => String(o.orderNumber || '').trim().toUpperCase() === normalized)) {
+          return true;
+        }
+      } catch (err) {}
+      return false;
+    }
+
+    function generateUniqueOrderCode() {
+      let storedMaxSeq = 1;
+      try {
+        const storedOrders = JSON.parse(localStorage.getItem(STORAGE_KEYS.orders));
+        storedMaxSeq = extractMaxOrderSeq(storedOrders);
+      } catch (err) {}
+
+      let seqNumber = Math.max(2, Number(orderSeq) || 2, extractMaxOrderSeq(orders) + 1, storedMaxSeq + 1);
+      let candidate = '';
+      let guard = 0;
+      do {
+        candidate = formatCupcuyCode(seqNumber);
+        seqNumber += 1;
+        guard += 1;
+      } while (isOrderCodeDuplicate(candidate) && guard < 1000);
+
+      orderSeq = seqNumber;
+      return candidate;
+    }
+
+    function computeOrdersDigest(orderList) {
+      if (!Array.isArray(orderList)) return '';
+      return orderList
+        .map((o) => `${o.orderNumber}|${o.status}|${o.total || 0}|${o.proofUploadedAt || ''}|${o.processedAt || ''}`)
+        .join('||');
+    }
+
+    async function pushOrderToCloud(orderObj) {
+      if (!LIVE_SYNC_URL || !orderObj || !orderObj.orderNumber) return;
+      try {
+        const base = LIVE_SYNC_URL.replace(/\/+$/, '');
+        const key = encodeURIComponent(orderObj.orderNumber);
+        await fetch(`${base}/orders/${key}.json`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderObj),
+        });
+      } catch (err) {}
+    }
+
+    async function pullOrdersFromCloud(notifyToast) {
+      if (!LIVE_SYNC_URL) return;
+      try {
+        const base = LIVE_SYNC_URL.replace(/\/+$/, '');
+        const res = await fetch(`${base}/orders.json`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data || typeof data !== 'object') return;
+        const cloudOrders = Object.values(data).filter((x) => x && x.orderNumber);
+        if (cloudOrders.length === 0) return;
+
+        const prevDigest = lastSyncedSnapshot;
+        const map = new Map();
+        orders.forEach((o) => map.set(o.orderNumber, o));
+        cloudOrders.forEach((co) => {
+          const existing = map.get(co.orderNumber);
+          map.set(co.orderNumber, existing ? { ...existing, ...co } : co);
+        });
+        orders = Array.from(map.values()).sort((a, b) =>
+          String(b.orderNumber || '').localeCompare(String(a.orderNumber || ''))
+        );
+        localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orders));
+        const nextDigest = computeOrdersDigest(orders);
+        if (nextDigest !== prevDigest) {
+          lastSyncedSnapshot = nextDigest;
+          refreshAdminBadge();
+          renderOrderTrackerCard();
+          refreshPaymentModalLiveBadge();
+          if (!document.getElementById('pageAdmin').classList.contains('hidden')) {
+            renderAdminStatsAndOrders();
+          }
+          if (notifyToast) {
+            showToast('Data pesanan tersinkronisasi secara live.', 'info');
+          }
+        }
+      } catch (err) {}
+    }
+
+    function loadPersistedState() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.qrisFile, QRIS_IMAGE_FILE);
+        const rawMenus = JSON.parse(localStorage.getItem(STORAGE_KEYS.menus));
+        menus = Array.isArray(rawMenus) && rawMenus.length > 0 ? rawMenus : JSON.parse(JSON.stringify(INITIAL_MENUS));
+
+        const rawOrdersStr = localStorage.getItem(STORAGE_KEYS.orders);
+        const rawOrders = rawOrdersStr ? JSON.parse(rawOrdersStr) : null;
+        orders = Array.isArray(rawOrders) ? rawOrders : JSON.parse(JSON.stringify(INITIAL_ORDERS));
+
+        orders.forEach((ord) => {
+          ensureOrderAccessToken(ord);
+          if (!ord.qrisImageFile) ord.qrisImageFile = QRIS_IMAGE_FILE;
+        });
+
+        const savedSeq = parseInt(localStorage.getItem(STORAGE_KEYS.counter), 10);
+        const baselineSeq = Math.max(2, extractMaxOrderSeq(orders) + 1);
+        orderSeq = Number.isFinite(savedSeq) && savedSeq >= baselineSeq ? savedSeq : baselineSeq;
+
+        const lastNum = localStorage.getItem(STORAGE_KEYS.lastOrder);
+        currentTrackedOrderNumber = lastNum || (orders[0] ? orders[0].orderNumber : '');
+        lastSyncedSnapshot = computeOrdersDigest(orders);
+      } catch (err) {
+        menus = JSON.parse(JSON.stringify(INITIAL_MENUS));
+        orders = JSON.parse(JSON.stringify(INITIAL_ORDERS));
+        orderSeq = 2;
+        lastSyncedSnapshot = computeOrdersDigest(orders);
+      }
+    }
+
+    function savePersistedState(broadcastEventType, targetOrderObj) {
+      try {
+        localStorage.setItem(STORAGE_KEYS.qrisFile, QRIS_IMAGE_FILE);
+        localStorage.setItem(STORAGE_KEYS.menus, JSON.stringify(menus));
+        localStorage.setItem(STORAGE_KEYS.orders, JSON.stringify(orders));
+        localStorage.setItem(STORAGE_KEYS.counter, String(orderSeq));
+        if (currentTrackedOrderNumber) {
+          localStorage.setItem(STORAGE_KEYS.lastOrder, currentTrackedOrderNumber);
+        }
+        lastSyncedSnapshot = computeOrdersDigest(orders);
+      } catch (err) {
+        showToast('Penyimpanan browser penuh.', 'warn');
+      }
+
+      if (targetOrderObj) {
+        pushOrderToCloud(targetOrderObj);
+      } else if (currentTrackedOrderNumber) {
+        const active = orders.find((o) => o.orderNumber === currentTrackedOrderNumber);
+        if (active) pushOrderToCloud(active);
+      }
+
+      refreshAdminBadge();
+      renderOrderTrackerCard();
+      refreshPaymentModalLiveBadge();
+
+      if (liveChannel && broadcastEventType) {
+        try {
+          liveChannel.postMessage({
+            type: broadcastEventType,
+            orderNumber: currentTrackedOrderNumber,
+            qrisImageFile: QRIS_IMAGE_FILE,
+            timestamp: Date.now(),
+          });
+        } catch (err) {}
+      }
+    }
+
+    function handleIncomingExternalUpdate(eventData, notifyToast) {
+      const previousDigest = lastSyncedSnapshot;
+      loadPersistedState();
+      const currentDigest = computeOrdersDigest(orders);
+
+      refreshAdminBadge();
+      renderOrderTrackerCard();
+      refreshPaymentModalLiveBadge();
+
+      if (!document.getElementById('pageAdmin').classList.contains('hidden')) {
+        renderAdminStatsAndOrders();
+      }
+
+      if (notifyToast && currentDigest !== previousDigest) {
+        const data = eventData || {};
+        if (data.type === 'PROOF_UPLOADED' && data.orderNumber) {
+          showToast(`Bukti bayar ${data.orderNumber} masuk! Status: Sedang Dicek Admin.`, 'info');
+        } else if (data.orderNumber) {
+          const updatedOrd = orders.find((o) => o.orderNumber === data.orderNumber);
+          if (updatedOrd) showToast(`Update live ${updatedOrd.orderNumber}: ${updatedOrd.status}`, 'info');
+        }
+      }
+    }
+
+    function setupLiveSyncListeners() {
+      if ('BroadcastChannel' in window) {
+        liveChannel = new BroadcastChannel(CHANNEL_NAME);
+        liveChannel.onmessage = (event) => {
+          handleIncomingExternalUpdate(event && event.data ? event.data : {}, true);
+        };
+      }
+
+      window.addEventListener('storage', (event) => {
+        if (event.key === STORAGE_KEYS.orders || event.key === STORAGE_KEYS.lastOrder || event.key === STORAGE_KEYS.counter) {
+          handleIncomingExternalUpdate({ orderNumber: event.key === STORAGE_KEYS.lastOrder ? event.newValue : '' }, true);
+        }
+      });
+
+      window.addEventListener('focus', () => {
+        handleIncomingExternalUpdate({ type: 'FOCUS_SYNC' }, false);
+        pullOrdersFromCloud(false);
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+          handleIncomingExternalUpdate({ type: 'VISIBILITY_SYNC' }, false);
+          pullOrdersFromCloud(false);
+        }
+      });
+
+      if (pollingInterval) clearInterval(pollingInterval);
+      pollingInterval = setInterval(() => {
+        try {
+          const freshRaw = localStorage.getItem(STORAGE_KEYS.orders);
+          if (freshRaw) {
+            const parsed = JSON.parse(freshRaw);
+            if (Array.isArray(parsed) && computeOrdersDigest(parsed) !== lastSyncedSnapshot) {
+              handleIncomingExternalUpdate({ type: 'POLLING_SYNC' }, true);
+            }
+          }
+        } catch (err) {}
+        pullOrdersFromCloud(true);
+      }, 1500);
+    }
+
+    function formatIDR(amount) {
+      return 'Rp ' + Math.round(Number(amount || 0)).toLocaleString('id-ID');
+    }
+
+    function escapeHtml(text) {
+      return String(text || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function showToast(message, variant) {
+      const container = document.getElementById('toastContainer');
+      const el = document.createElement('div');
+      const styleClass = variant === 'warn'
+        ? 'bg-amber-600 text-white border-amber-500'
+        : variant === 'info'
+        ? 'bg-espresso text-cream border-amber-500/30'
+        : 'bg-emerald-700 text-white border-emerald-500';
+      el.className = `${styleClass} border px-4 py-3 rounded-2xl shadow-xl text-xs sm:text-sm font-bold pointer-events-auto transition-all`;
+      el.textContent = message;
+      container.appendChild(el);
+      setTimeout(() => {
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(-8px)';
+        setTimeout(() => el.remove(), 250);
+      }, 3000);
+    }
+
+    function getOrderStatusBadgeClass(status) {
+      if (status === 'Menunggu Bukti Bayar') return 'bg-amber-100 text-amber-900 border-amber-300';
+      if (status === 'Sedang Dicek Admin') return 'bg-purple-100 text-purple-900 border-purple-300';
+      if (status === 'Sedang Diproses') return 'bg-sky-100 text-sky-900 border-sky-300';
+      if (status === 'Sedang Dibuat') return 'bg-indigo-100 text-indigo-900 border-indigo-300';
+      return 'bg-emerald-100 text-emerald-900 border-emerald-300';
+    }
+
+    function navigateTo(pageName) {
+      document.getElementById('pageMenu').classList.add('hidden');
+      document.getElementById('pageAdmin').classList.add('hidden');
+      const navMenu = document.getElementById('navBtnMenu');
+      const navAdmin = document.getElementById('navBtnAdmin');
+
+      if (pageName === 'menu') {
+        document.getElementById('pageMenu').classList.remove('hidden');
+        navMenu.className = 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-caramel text-espressoDark shadow-sm transition flex items-center gap-1.5';
+        navAdmin.className = 'relative px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-latte hover:bg-amber-100 text-espresso border border-amber-900/20 transition flex items-center gap-1.5';
+        renderMenuCatalog();
+        renderOrderTrackerCard();
+      } else {
+        document.getElementById('pageAdmin').classList.remove('hidden');
+        navAdmin.className = 'relative px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-caramel text-espressoDark shadow-sm transition flex items-center gap-1.5';
+        navMenu.className = 'px-3 py-2 rounded-xl text-xs sm:text-sm font-bold bg-espressoDark hover:bg-amber-950 text-cream border border-amber-500/30 transition flex items-center gap-1.5';
+        renderAdminStatsAndOrders();
+        renderAdminMenuManager();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function buildPaymentPageUrl(orderNumber) {
+      const target = orders.find((o) => o.orderNumber === orderNumber);
+      const token = target ? ensureOrderAccessToken(target) : '';
+      const qrisPath = (target && target.qrisImageFile) ? target.qrisImageFile : QRIS_IMAGE_FILE;
+      const encodedData = target ? encodeOrderPayload(target) : '';
+
+      const baseUrl = new URL(PAYMENT_PAGE_URL);
+      if (orderNumber) baseUrl.searchParams.set('order', orderNumber);
+      if (token) baseUrl.searchParams.set('token', token);
+      if (qrisPath) baseUrl.searchParams.set('qris', qrisPath);
+      if (encodedData) baseUrl.searchParams.set('data', encodedData);
+      return baseUrl.href;
+    }
+
+    function renderApiQrFallback(containerEl, payloadText) {
+      const img = document.createElement('img');
+      img.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&ecc=M&data=${encodeURIComponent(payloadText)}`;
+      img.alt = 'QR Code Menuju Halaman Pembayaran';
+      img.className = 'w-[220px] h-[220px] block rounded-xl bg-white object-contain';
+      containerEl.innerHTML = '';
+      containerEl.appendChild(img);
+    }
+
+    function renderRedirectQrCode(containerEl, payloadText) {
+      if (!containerEl) return;
+      containerEl.innerHTML = '';
+      const cleanPayload = String(payloadText || '').trim();
+      if (!cleanPayload) return;
+
+      if (typeof window.QRCode === 'function') {
+        try {
+          new window.QRCode(containerEl, {
+            text: cleanPayload,
+            width: 220,
+            height: 220,
+            colorDark: '#000000',
+            colorLight: '#FFFFFF',
+            correctLevel: window.QRCode.CorrectLevel ? window.QRCode.CorrectLevel.L : 1,
+          });
+          return;
+        } catch (err) {
+          renderApiQrFallback(containerEl, cleanPayload);
+          return;
+        }
+      }
+      renderApiQrFallback(containerEl, cleanPayload);
+    }
+
+    function openPaymentPageForOrder(orderNumber, newTab) {
+      if (!orderNumber) return;
+      currentTrackedOrderNumber = orderNumber;
+      try { localStorage.setItem(STORAGE_KEYS.lastOrder, orderNumber); } catch (err) {}
+      const url = buildPaymentPageUrl(orderNumber);
+      if (newTab) {
+        window.open(url, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = url;
+      }
+    }
+
+    function openLatestOrderQrModal() {
+      if (!currentTrackedOrderNumber) return;
+      openPaymentLinkModal(currentTrackedOrderNumber);
+    }
+
+    function copyPaymentLink(orderNumber) {
+      if (!orderNumber) return;
+      const url = buildPaymentPageUrl(orderNumber);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url)
+          .then(() => showToast(`Link halaman bayar ${orderNumber} berhasil disalin.`))
+          .catch(() => fallbackCopyText(url, orderNumber));
+      } else {
+        fallbackCopyText(url, orderNumber);
+      }
+    }
+
+    function fallbackCopyText(url, orderNumber) {
+      const tempTextarea = document.createElement('textarea');
+      tempTextarea.value = url;
+      tempTextarea.setAttribute('readonly', '');
+      tempTextarea.style.position = 'absolute';
+      tempTextarea.style.left = '-9999px';
+      document.body.appendChild(tempTextarea);
+      tempTextarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(`Link halaman bayar ${orderNumber} berhasil disalin.`);
+      } catch (err) {
+        showToast('Gagal menyalin link secara otomatis.', 'warn');
+      }
+      document.body.removeChild(tempTextarea);
+    }
+
+    function refreshPaymentModalLiveBadge() {
+      const modal = document.getElementById('paymentLinkModal');
+      if (!modal || modal.classList.contains('hidden') || !modalTargetOrderNumber) return;
+      const ord = orders.find((o) => o.orderNumber === modalTargetOrderNumber);
+      const badge = document.getElementById('modalLiveOrderStatus');
+      const totalEl = document.getElementById('modalOrderTotalLabel');
+      if (ord) {
+        if (badge) {
+          badge.textContent = ord.status;
+          badge.className = `px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${getOrderStatusBadgeClass(ord.status)}`;
+        }
+        if (totalEl) totalEl.textContent = formatIDR(ord.total);
+      }
+    }
+
+    function openPaymentLinkModal(orderNumber) {
+      if (!orderNumber) return;
+      modalTargetOrderNumber = orderNumber;
+      const url = buildPaymentPageUrl(orderNumber);
+      const ord = orders.find((o) => o.orderNumber === orderNumber);
+
+      document.getElementById('modalOrderNumber').textContent = orderNumber;
+      document.getElementById('modalQrOrderCodeLabel').textContent = orderNumber;
+      document.getElementById('modalPaymentUrlText').textContent = url;
+      document.getElementById('modalOrderTotalLabel').textContent = ord ? formatIDR(ord.total) : 'Rp 0';
+
+      const statusBadge = document.getElementById('modalLiveOrderStatus');
+      const currentStatus = ord ? ord.status : 'Menunggu Bukti Bayar';
+      statusBadge.textContent = currentStatus;
+      statusBadge.className = `px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${getOrderStatusBadgeClass(currentStatus)}`;
+
+      renderRedirectQrCode(document.getElementById('modalRedirectQrBox'), url);
+
+      const modal = document.getElementById('paymentLinkModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closePaymentLinkModal() {
+      const modal = document.getElementById('paymentLinkModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function renderOrderTrackerCard() {
+      const card = document.getElementById('activeOrderTrackerCard');
+      const heroBtn = document.getElementById('btnLatestOrderQrModal');
+      const target = orders.find((o) => o.orderNumber === currentTrackedOrderNumber) || orders[0];
+
+      if (!target) {
+        card.classList.add('hidden');
+        heroBtn.classList.add('hidden');
+        heroBtn.classList.remove('flex');
+        return;
+      }
+
+      currentTrackedOrderNumber = target.orderNumber;
+      card.classList.remove('hidden');
+      heroBtn.classList.remove('hidden');
+      heroBtn.classList.add('flex');
+
+      document.getElementById('latestOrderBtnLabel').textContent = `QR Bayar ${target.orderNumber}`;
+      document.getElementById('trackerOrderNumber').textContent = target.orderNumber;
+      const badge = document.getElementById('trackerStatusBadge');
+      badge.textContent = target.status;
+      badge.className = `px-2.5 py-0.5 rounded-full text-[11px] font-extrabold border ${getOrderStatusBadgeClass(target.status)}`;
+
+      const itemRingkas = (target.items || []).map((i) => `${i.qty}x ${i.name}`).join(', ');
+      document.getElementById('trackerOrderSummary').textContent =
+        `${target.customerName} (${target.serviceType}) • ${itemRingkas} • Total ${formatIDR(target.total)}`;
+      document.getElementById('trackerOrderUrlText').textContent = buildPaymentPageUrl(target.orderNumber);
+    }
+
+    function renderCategoryTabs() {
+      const container = document.getElementById('categoryTabs');
+      container.innerHTML = CATEGORIES.map((cat) => {
+        const isActive = cat === activeCategory;
+        const cls = isActive
+          ? 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-extrabold bg-espresso text-white shadow-2xs whitespace-nowrap transition'
+          : 'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold bg-white hover:bg-latte text-espresso border border-amber-900/15 whitespace-nowrap transition';
+        return `<button type="button" onclick="selectCategory('${escapeHtml(cat)}')" class="${cls}">${escapeHtml(cat)}</button>`;
+      }).join('');
+    }
+
+    function selectCategory(cat) {
+      activeCategory = cat;
+      renderCategoryTabs();
+      renderMenuCatalog();
+    }
+
+    function buildMenuPhotoMarkup(item) {
+      const fallbackSvg = "data:image/svg+xml;charset=UTF-8," + encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300">' +
+          '<rect width="400" height="300" fill="#F5ECE1"/>' +
+          '<text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#3B2314" font-family="sans-serif" font-size="18" font-weight="bold">nice-cup-uy</text>' +
+        '</svg>'
+      );
+      const src = item.image ? escapeHtml(item.image) : fallbackSvg;
+      return `<img src="${src}" alt="${escapeHtml(item.name)}" onerror="this.onerror=null;this.src='${fallbackSvg}';" class="w-full h-full object-cover group-hover:scale-105 transition duration-300" />`;
+    }
+
+    function renderMenuCatalog() {
+      const grid = document.getElementById('menuGrid');
+      const query = (document.getElementById('searchMenuInput').value || '').trim().toLowerCase();
+      const filtered = menus.filter((m) => {
+        const matchCat = activeCategory === 'Semua' || m.category === activeCategory;
+        const matchText = !query ||
+          m.name.toLowerCase().includes(query) ||
+          m.desc.toLowerCase().includes(query) ||
+          m.category.toLowerCase().includes(query);
+        return matchCat && matchText;
+      });
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-3xl border border-amber-900/15 p-10 text-center"><p class="font-display text-lg font-extrabold text-espresso">Menu tidak ditemukan</p></div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map((item) => {
+        const isAvailable = item.available !== false;
+        const stockBadge = isAvailable
+          ? `<span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[11px] font-extrabold">Tersedia</span>`
+          : `<span class="px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-[11px] font-extrabold">Habis</span>`;
+        const actionBtn = isAvailable
+          ? `<button type="button" onclick="addToCart('${escapeHtml(item.id)}')" class="px-3.5 py-2 rounded-xl bg-espresso hover:bg-caramel text-white hover:text-espressoDark font-extrabold text-xs transition shadow-2xs flex items-center gap-1">+ Tambah</button>`
+          : `<button type="button" disabled class="px-3 py-2 rounded-xl bg-latte text-espresso/45 font-bold text-xs cursor-not-allowed">Habis</button>`;
+
+        return `
+          <article class="bg-white rounded-3xl border border-amber-900/15 shadow-2xs hover:shadow-md transition overflow-hidden flex flex-col justify-between group ${!isAvailable ? 'opacity-80' : ''}">
+            <div>
+              <div class="h-44 bg-latte relative overflow-hidden">
+                ${buildMenuPhotoMarkup(item)}
+                <span class="absolute top-3 left-3 px-2.5 py-1 rounded-xl bg-espresso/85 text-amber-200 text-[10px] font-bold backdrop-blur-xs">${escapeHtml(item.category)}</span>
+                <div class="absolute top-3 right-3">${stockBadge}</div>
+              </div>
+              <div class="p-4">
+                <h3 class="font-display font-extrabold text-base sm:text-lg text-espresso leading-snug">${escapeHtml(item.name)}</h3>
+                <p class="text-xs text-espresso/70 mt-1 line-clamp-2 leading-relaxed">${escapeHtml(item.desc)}</p>
+              </div>
+            </div>
+            <div class="px-4 pb-4 pt-2 flex items-center justify-between gap-2">
+              <span class="font-extrabold text-sm sm:text-base text-caramelDark">${formatIDR(item.price)}</span>
+              ${actionBtn}
+            </div>
+          </article>
+        `;
+      }).join('');
+    }
+
+    function openCartDrawer() {
+      renderCartDrawer();
+      document.getElementById('cartDrawer').classList.remove('hidden');
+    }
+
+    function closeCartDrawer() {
+      document.getElementById('cartDrawer').classList.add('hidden');
+    }
+
+    function setServiceType(type) {
+      serviceType = type;
+      const btnDine = document.getElementById('btnServiceDineIn');
+      const btnTake = document.getElementById('btnServiceTakeAway');
+      btnDine.className = type === 'Dine In'
+        ? 'py-2 px-3 rounded-xl text-xs font-extrabold bg-espresso text-white border border-espresso transition'
+        : 'py-2 px-3 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/20 transition';
+      btnTake.className = type === 'Take Away'
+        ? 'py-2 px-3 rounded-xl text-xs font-extrabold bg-espresso text-white border border-espresso transition'
+        : 'py-2 px-3 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/20 transition';
+    }
+
+    function addToCart(menuId) {
+      const product = menus.find((m) => m.id === menuId);
+      if (!product || product.available === false) {
+        showToast('Maaf, menu sedang habis.', 'warn');
+        return;
+      }
+      const existing = cart.find((c) => c.menuId === product.id && (c.note || '') === '');
+      if (existing) {
+        existing.qty += 1;
+      } else {
+        cart.push({
+          lineId: 'line_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+          menuId: product.id,
+          name: product.name,
+          price: Number(product.price),
+          qty: 1,
+          note: '',
+        });
+      }
+      updateCartCounters();
+      showToast(`${product.name} masuk ke keranjang.`);
+    }
+
+    function changeCartQty(lineId, delta) {
+      const idx = cart.findIndex((c) => c.lineId === lineId);
+      if (idx === -1) return;
+      cart[idx].qty += delta;
+      if (cart[idx].qty <= 0) cart.splice(idx, 1);
+      updateCartCounters();
+      renderCartDrawer();
+    }
+
+    function updateCartItemNote(lineId, noteValue) {
+      const item = cart.find((c) => c.lineId === lineId);
+      if (item) item.note = noteValue;
+    }
+
+    function applyQuickNote(lineId, tagText) {
+      const item = cart.find((c) => c.lineId === lineId);
+      if (!item) return;
+      const parts = (item.note || '').split(',').map((s) => s.trim()).filter(Boolean);
+      if (!parts.includes(tagText)) parts.push(tagText);
+      item.note = parts.join(', ');
+      renderCartDrawer();
+    }
+
+    function updateCartCounters() {
+      const totalQty = cart.reduce((sum, item) => sum + item.qty, 0);
+      document.getElementById('cartBadgeCount').textContent = String(totalQty);
+      document.getElementById('heroCartCount').textContent = String(totalQty);
+    }
+
+    function renderCartDrawer() {
+      const container = document.getElementById('cartItemsContainer');
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const tax = Math.round(subtotal * 0.10);
+      const total = subtotal + tax;
+
+      document.getElementById('cartSubtotalDisplay').textContent = formatIDR(subtotal);
+      document.getElementById('cartTaxDisplay').textContent = formatIDR(tax);
+      document.getElementById('cartGrandTotalDisplay').textContent = formatIDR(total);
+      document.getElementById('btnBuyAndPayQris').disabled = cart.length === 0;
+
+      if (cart.length === 0) {
+        container.innerHTML = `<div class="h-full flex flex-col items-center justify-center text-center p-8"><p class="font-display font-extrabold text-base text-espresso">Keranjang masih kosong</p></div>`;
+        return;
+      }
+
+      container.innerHTML = cart.map((item) => `
+        <div class="rounded-2xl bg-cream border border-amber-900/15 p-3.5 space-y-2.5">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <h4 class="font-bold text-sm text-espresso truncate">${escapeHtml(item.name)}</h4>
+              <p class="text-xs font-extrabold text-caramelDark">${formatIDR(item.price * item.qty)}</p>
+            </div>
+            <div class="flex items-center gap-1.5 bg-white rounded-xl p-1 border border-amber-900/15 shrink-0">
+              <button type="button" onclick="changeCartQty('${escapeHtml(item.lineId)}', -1)" class="w-6 h-6 rounded-lg bg-latte hover:bg-amber-100 text-espresso font-bold text-xs">-</button>
+              <span class="w-5 text-center text-xs font-extrabold">${item.qty}</span>
+              <button type="button" onclick="changeCartQty('${escapeHtml(item.lineId)}', 1)" class="w-6 h-6 rounded-lg bg-latte hover:bg-amber-100 text-espresso font-bold text-xs">+</button>
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-1.5">
+            <button type="button" onclick="applyQuickNote('${escapeHtml(item.lineId)}', 'Less Sugar')" class="px-2 py-0.5 rounded-lg bg-white hover:bg-amber-100 border border-amber-900/15 text-[10px] font-bold text-espresso">+ Less Sugar</button>
+            <button type="button" onclick="applyQuickNote('${escapeHtml(item.lineId)}', 'Extra Shot')" class="px-2 py-0.5 rounded-lg bg-white hover:bg-amber-100 border border-amber-900/15 text-[10px] font-bold text-espresso">+ Extra Shot</button>
+            <button type="button" onclick="applyQuickNote('${escapeHtml(item.lineId)}', 'Less Ice')" class="px-2 py-0.5 rounded-lg bg-white hover:bg-amber-100 border border-amber-900/15 text-[10px] font-bold text-espresso">+ Less Ice</button>
+          </div>
+          <input type="text" value="${escapeHtml(item.note)}" oninput="updateCartItemNote('${escapeHtml(item.lineId)}', this.value)" placeholder="Catatan item (opsional)..." class="w-full px-3 py-1.5 rounded-xl bg-white border border-amber-900/15 text-xs focus:outline-none focus:ring-2 focus:ring-caramel" />
+        </div>
+      `).join('');
+    }
+
+    function createOrderAndShowRedirectQr() {
+      if (cart.length === 0) return;
+      loadPersistedState();
+
+      const rawCustomer = (document.getElementById('checkoutCustomerInput').value || '').trim();
+      const customerName = rawCustomer || 'Pelanggan Langsung';
+      const subtotal = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+      const tax = Math.round(subtotal * 0.10);
+      const total = subtotal + tax;
+      const orderNumber = generateUniqueOrderCode();
+      const accessToken = generateOrderAccessToken(orderNumber);
+      const nowTime = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+
+      const newOrder = {
+        orderNumber,
+        accessToken,
+        customerName,
+        serviceType,
+        items: cart.map((c) => ({
+          menuId: c.menuId,
+          name: c.name,
+          price: c.price,
+          qty: c.qty,
+          note: (c.note || '').trim(),
+        })),
+        subtotal,
+        tax,
+        total,
+        paymentMethod: 'QRIS',
+        qrisImageFile: QRIS_IMAGE_FILE,
+        status: 'Menunggu Bukti Bayar',
+        proofImage: '',
+        proofUploadedAt: '',
+        proofSenderNote: '',
+        createdAt: nowTime,
+        processedAt: '',
+      };
+
+      orders.unshift(newOrder);
+      currentTrackedOrderNumber = orderNumber;
+      savePersistedState('ORDER_CREATED', newOrder);
+
+      cart = [];
+      document.getElementById('checkoutCustomerInput').value = '';
+      updateCartCounters();
+      closeCartDrawer();
+
+      if (!document.getElementById('pageAdmin').classList.contains('hidden')) {
+        renderAdminStatsAndOrders();
+      }
+
+      openPaymentLinkModal(orderNumber);
+      showToast(`Pesanan ${orderNumber} (${formatIDR(total)}) siap dibayar.`, 'info');
+    }
+
+    function refreshAdminBadge() {
+      const checkCount = orders.filter((o) => o.status === 'Sedang Dicek Admin').length;
+      const badge = document.getElementById('adminOrderBadge');
+      if (checkCount > 0) {
+        badge.textContent = String(checkCount);
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+
+    function requestAdminAccess() {
+      if (isAdminUnlocked) {
+        navigateTo('admin');
+        return;
+      }
+      document.getElementById('adminPinInput').value = '';
+      document.getElementById('adminPinError').classList.add('hidden');
+      const modal = document.getElementById('adminPinModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      setTimeout(() => document.getElementById('adminPinInput').focus(), 80);
+    }
+
+    function closeAdminPinModal() {
+      const modal = document.getElementById('adminPinModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function fillDefaultAdminPin() {
+      document.getElementById('adminPinInput').value = ADMIN_DEFAULT_PIN;
+      document.getElementById('adminPinError').classList.add('hidden');
+    }
+
+    function submitAdminPin(event) {
+      event.preventDefault();
+      if ((document.getElementById('adminPinInput').value || '').trim() === ADMIN_DEFAULT_PIN) {
+        isAdminUnlocked = true;
+        closeAdminPinModal();
+        navigateTo('admin');
+        showToast('Akses Halaman Admin berhasil dibuka.');
+      } else {
+        document.getElementById('adminPinError').classList.remove('hidden');
+      }
+    }
+
+    function lockAdminSession() {
+      isAdminUnlocked = false;
+      navigateTo('menu');
+      showToast('Halaman Admin telah dikunci.', 'info');
+    }
+
+    function switchAdminSubTab(tabName) {
+      const ordersPanel = document.getElementById('adminPanelOrders');
+      const menusPanel = document.getElementById('adminPanelMenus');
+      const btnOrders = document.getElementById('adminTabOrders');
+      const btnMenus = document.getElementById('adminTabMenus');
+      if (tabName === 'orders') {
+        ordersPanel.classList.remove('hidden');
+        menusPanel.classList.add('hidden');
+        menusPanel.classList.remove('grid');
+        btnOrders.className = 'px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold bg-espresso text-white shadow-sm transition';
+        btnMenus.className = 'px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-latte hover:bg-amber-100 text-espresso border border-amber-900/15 transition';
+        renderAdminStatsAndOrders();
+      } else {
+        menusPanel.classList.remove('hidden');
+        menusPanel.classList.add('grid');
+        ordersPanel.classList.add('hidden');
+        btnMenus.className = 'px-4 py-2.5 rounded-xl text-xs sm:text-sm font-extrabold bg-espresso text-white shadow-sm transition';
+        btnOrders.className = 'px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-latte hover:bg-amber-100 text-espresso border border-amber-900/15 transition';
+        renderAdminMenuManager();
+      }
+    }
+
+    function setAdminOrderFilter(filterStatus) {
+      activeAdminFilter = filterStatus;
+      document.querySelectorAll('.order-filter-btn').forEach((btn) => {
+        btn.className = btn.dataset.orderFilter === filterStatus
+          ? 'order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-extrabold bg-espresso text-white'
+          : 'order-filter-btn px-3.5 py-1.5 rounded-xl text-xs font-bold bg-white text-espresso border border-amber-900/15';
+      });
+      renderAdminStatsAndOrders();
+    }
+
+    function renderAdminStatsAndOrders() {
+      loadPersistedState();
+      const paidStatuses = ['Sedang Diproses', 'Sedang Dibuat', 'Selesai'];
+      const revenue = orders.filter((o) => paidStatuses.includes(o.status)).reduce((sum, o) => sum + Number(o.total || 0), 0);
+      document.getElementById('statRevenue').textContent = formatIDR(revenue);
+      document.getElementById('statWaitingProof').textContent = String(orders.filter((o) => o.status === 'Menunggu Bukti Bayar').length);
+      document.getElementById('statCheckingProof').textContent = String(orders.filter((o) => o.status === 'Sedang Dicek Admin').length);
+      document.getElementById('statProcessing').textContent = String(orders.filter((o) => o.status === 'Sedang Diproses' || o.status === 'Sedang Dibuat').length);
+      document.getElementById('statDone').textContent = String(orders.filter((o) => o.status === 'Selesai').length);
+
+      const grid = document.getElementById('adminOrdersGrid');
+      const visibleOrders = activeAdminFilter === 'Semua' ? orders : orders.filter((o) => o.status === activeAdminFilter);
+
+      if (visibleOrders.length === 0) {
+        grid.innerHTML = `<div class="col-span-full bg-white rounded-3xl border border-amber-900/15 p-10 text-center"><p class="font-display font-extrabold text-base text-espresso">Tidak ada pesanan pada filter ini</p></div>`;
+        return;
+      }
+
+      grid.innerHTML = visibleOrders.map((ord) => {
+        const badgeStyle = getOrderStatusBadgeClass(ord.status);
+        const proofSectionHtml = ord.proofImage
+          ? `
+            <div class="rounded-2xl bg-cream border border-amber-900/15 p-3 flex items-center gap-3">
+              <img src="${escapeHtml(ord.proofImage)}" alt="Bukti Transfer ${escapeHtml(ord.orderNumber)}" onclick="openProofPreviewModal('${escapeHtml(ord.orderNumber)}')" class="w-16 h-16 rounded-xl object-cover border border-amber-900/15 cursor-pointer shrink-0" />
+              <div class="min-w-0 flex-1">
+                <p class="text-[11px] font-extrabold text-espresso">Bukti Pembayaran Terkirim</p>
+                <p class="text-[10px] text-espresso/60 mt-0.5">Diupload: ${escapeHtml(ord.proofUploadedAt || '-')}</p>
+                <button type="button" onclick="openProofPreviewModal('${escapeHtml(ord.orderNumber)}')" class="mt-1 text-[11px] font-extrabold text-caramelDark hover:underline">Lihat Bukti Penuh</button>
+              </div>
+            </div>
+          `
+          : `<div class="rounded-2xl bg-amber-50/70 border border-dashed border-amber-300 p-2.5 text-[11px] text-amber-900 font-semibold text-center">Menunggu customer mengunggah bukti pembayaran</div>`;
+
+        let actionButtonHtml = '';
+        if (ord.status === 'Sedang Dicek Admin') {
+          actionButtonHtml = `<button type="button" onclick="markBalanceReceived('${escapeHtml(ord.orderNumber)}')" class="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs sm:text-sm shadow transition">Saldo Masuk</button>`;
+        } else if (ord.status === 'Menunggu Bukti Bayar') {
+          actionButtonHtml = `
+            <div class="flex gap-2">
+              <button type="button" onclick="openPaymentLinkModal('${escapeHtml(ord.orderNumber)}')" class="flex-1 py-2 px-3 rounded-xl bg-latte hover:bg-amber-100 text-espresso border border-amber-900/15 font-bold text-xs transition">QR Halaman Bayar</button>
+              <button type="button" onclick="markBalanceReceived('${escapeHtml(ord.orderNumber)}')" class="flex-1 py-2 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition">Saldo Masuk</button>
+            </div>
+          `;
+        } else if (ord.status === 'Sedang Diproses') {
+          actionButtonHtml = `<button type="button" onclick="advanceOrderStatus('${escapeHtml(ord.orderNumber)}', 'Sedang Dibuat')" class="w-full py-2.5 px-3 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-extrabold text-xs shadow-2xs transition">Mulai Buat Pesanan (Barista)</button>`;
+        } else if (ord.status === 'Sedang Dibuat') {
+          actionButtonHtml = `<button type="button" onclick="advanceOrderStatus('${escapeHtml(ord.orderNumber)}', 'Selesai')" class="w-full py-2.5 px-3 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs shadow-2xs transition">Tandai Selesai</button>`;
+        } else {
+          actionButtonHtml = `<div class="w-full py-2 px-3 rounded-xl bg-latte text-espresso/70 font-bold text-xs text-center">Pesanan Selesai</div>`;
+        }
+
+        return `
+          <div class="bg-white rounded-3xl border border-amber-900/15 p-5 shadow-2xs flex flex-col justify-between gap-4">
+            <div class="space-y-3">
+              <div class="flex items-start justify-between gap-2 pb-2.5 border-b border-amber-900/10">
+                <div>
+                  <span class="font-mono font-extrabold text-base text-espresso">${escapeHtml(ord.orderNumber)}</span>
+                  <p class="text-xs font-bold text-espresso/80 mt-0.5">${escapeHtml(ord.customerName)} &bull; ${escapeHtml(ord.serviceType)}</p>
+                </div>
+                <div class="text-right">
+                  <span class="inline-block px-2.5 py-1 rounded-lg border text-[11px] font-extrabold ${badgeStyle}">${escapeHtml(ord.status)}</span>
+                  <p class="text-[11px] text-espresso/50 mt-1">${escapeHtml(ord.createdAt || '-')}</p>
+                </div>
+              </div>
+              <div class="space-y-1.5 text-xs">
+                ${(ord.items || []).map((it) => `
+                  <div class="flex justify-between items-start gap-2">
+                    <div>
+                      <span class="font-extrabold text-espresso">${it.qty}x</span>
+                      <span class="font-semibold text-espresso">${escapeHtml(it.name)}</span>
+                      ${it.note ? `<p class="text-[11px] text-caramelDark font-medium pl-4">&bull; ${escapeHtml(it.note)}</p>` : ''}
+                    </div>
+                    <span class="font-semibold text-espresso/75 shrink-0">${formatIDR(it.price * it.qty)}</span>
+                  </div>
+                `).join('')}
+              </div>
+              ${proofSectionHtml}
+            </div>
+            <div class="pt-3 border-t border-amber-900/10 space-y-2.5">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-espresso/60">Total Tagihan</span>
+                <span class="font-extrabold text-base text-espresso">${formatIDR(ord.total)}</span>
+              </div>
+              ${actionButtonHtml}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function markBalanceReceived(orderNumber) {
+      const target = orders.find((o) => o.orderNumber === orderNumber);
+      if (!target) return;
+      target.status = 'Sedang Diproses';
+      target.processedAt = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB';
+      currentTrackedOrderNumber = orderNumber;
+      savePersistedState('BALANCE_CONFIRMED', target);
+      renderAdminStatsAndOrders();
+      showToast(`Saldo masuk dikonfirmasi! ${orderNumber} kini Sedang Diproses.`);
+    }
+
+    function advanceOrderStatus(orderNumber, nextStatus) {
+      const target = orders.find((o) => o.orderNumber === orderNumber);
+      if (!target) return;
+      target.status = nextStatus;
+      currentTrackedOrderNumber = orderNumber;
+      savePersistedState('ORDER_STATUS_UPDATED', target);
+      renderAdminStatsAndOrders();
+      showToast(`Status ${orderNumber} diperbarui menjadi "${nextStatus}".`);
+    }
+
+    function clearFinishedOrders() {
+      const countBefore = orders.length;
+      orders = orders.filter((o) => o.status !== 'Selesai');
+      if (orders.length === countBefore) {
+        showToast('Tidak ada pesanan berstatus Selesai.', 'info');
+        return;
+      }
+      savePersistedState('ORDERS_CLEARED');
+      renderAdminStatsAndOrders();
+      showToast('Pesanan selesai telah dibersihkan.');
+    }
+
+    function openProofPreviewModal(orderNumber) {
+      const ord = orders.find((o) => o.orderNumber === orderNumber);
+      if (!ord || !ord.proofImage) return;
+      document.getElementById('proofModalTitle').textContent = `Bukti Pembayaran ${ord.orderNumber}`;
+      document.getElementById('proofModalImg').src = ord.proofImage;
+      document.getElementById('proofModalMeta').textContent = `${ord.customerName} • Total ${formatIDR(ord.total)} • Diupload ${ord.proofUploadedAt || '-'}`;
+      const modal = document.getElementById('proofPreviewModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeProofPreviewModal() {
+      const modal = document.getElementById('proofPreviewModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    }
+
+    function setProductPhotoPreview(dataOrUrl) {
+      const imgEl = document.getElementById('menuPhotoPreviewImg');
+      const placeholderEl = document.getElementById('menuPhotoPlaceholder');
+      const removeBtn = document.getElementById('btnRemoveMenuPhoto');
+      document.getElementById('menuPhotoData').value = dataOrUrl || '';
+      if (dataOrUrl) {
+        imgEl.src = dataOrUrl;
+        imgEl.classList.remove('hidden');
+        placeholderEl.classList.add('hidden');
+        removeBtn.classList.remove('hidden');
+      } else {
+        imgEl.src = '';
+        imgEl.classList.add('hidden');
+        placeholderEl.classList.remove('hidden');
+        removeBtn.classList.add('hidden');
+      }
+    }
+
+    function handleProductPhotoFile(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file || !file.type.startsWith('image/')) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxSize = 600;
+          let w = img.width, h = img.height;
+          if (w > maxSize || h > maxSize) {
+            if (w >= h) { h = Math.round((h * maxSize) / w); w = maxSize; }
+            else { w = Math.round((w * maxSize) / h); h = maxSize; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          document.getElementById('menuPhotoUrlInput').value = '';
+          setProductPhotoPreview(canvas.toDataURL('image/jpeg', 0.82));
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function handleProductPhotoUrl(val) {
+      setProductPhotoPreview((val || '').trim());
+    }
+
+    function clearProductPhoto() {
+      document.getElementById('menuPhotoUrlInput').value = '';
+      setProductPhotoPreview('');
+    }
+
+    function renderAdminMenuManager() {
+      document.getElementById('adminMenuCountLabel').textContent = String(menus.length);
+      document.getElementById('adminMenuList').innerHTML = menus.map((item) => {
+        const isAvailable = item.available !== false;
+        return `
+          <div class="py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+              <div class="w-14 h-14 rounded-2xl bg-latte overflow-hidden shrink-0 border border-amber-900/10">${buildMenuPhotoMarkup(item)}</div>
+              <div class="min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <p class="font-bold text-sm text-espresso truncate">${escapeHtml(item.name)}</p>
+                  <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold ${isAvailable ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-700'}">${isAvailable ? 'Tersedia' : 'Habis'}</span>
+                </div>
+                <p class="text-xs text-espresso/65 mt-0.5">${escapeHtml(item.category)} &bull; <strong class="text-caramelDark">${formatIDR(item.price)}</strong></p>
+              </div>
+            </div>
+            <div class="flex items-center gap-1.5 shrink-0 self-end sm:self-center">
+              <button type="button" onclick="toggleMenuAvailability('${escapeHtml(item.id)}')" class="px-2.5 py-1.5 rounded-xl bg-latte hover:bg-amber-100 text-espresso text-xs font-bold border border-amber-900/15 transition">${isAvailable ? 'Set Habis' : 'Set Tersedia'}</button>
+              <button type="button" onclick="beginEditMenu('${escapeHtml(item.id)}')" class="px-3 py-1.5 rounded-xl bg-espresso hover:bg-espressoDark text-white text-xs font-bold transition">Edit</button>
+              <button type="button" onclick="removeMenuItem('${escapeHtml(item.id)}')" class="px-2.5 py-1.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold border border-red-200 transition">Hapus</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function handleMenuFormSubmit(event) {
+      event.preventDefault();
+      const editId = document.getElementById('editMenuId').value;
+      const name = (document.getElementById('menuNameInput').value || '').trim();
+      const category = document.getElementById('menuCategoryInput').value;
+      const price = parseInt(document.getElementById('menuPriceInput').value, 10);
+      const available = document.getElementById('menuStockInput').value === 'true';
+      const desc = (document.getElementById('menuDescInput').value || '').trim();
+      const image = (document.getElementById('menuPhotoData').value || '').trim();
+      if (!name || !Number.isFinite(price) || price <= 0) return;
+
+      if (editId) {
+        const idx = menus.findIndex((m) => m.id === editId);
+        if (idx > -1) menus[idx] = { ...menus[idx], name, category, price, available, desc, image };
+      } else {
+        menus.unshift({ id: 'ncu_' + Date.now(), name, category, price, available, desc, image });
+      }
+      savePersistedState('MENUS_UPDATED');
+      resetMenuEditorForm();
+      renderMenuCatalog();
+      renderAdminMenuManager();
+      showToast(`Menu "${name}" disimpan.`);
+    }
+
+    function beginEditMenu(menuId) {
+      const item = menus.find((m) => m.id === menuId);
+      if (!item) return;
+      document.getElementById('menuFormHeading').textContent = 'Edit Menu & Foto';
+      document.getElementById('editMenuId').value = item.id;
+      document.getElementById('menuNameInput').value = item.name;
+      document.getElementById('menuCategoryInput').value = item.category;
+      document.getElementById('menuPriceInput').value = String(item.price);
+      document.getElementById('menuStockInput').value = item.available === false ? 'false' : 'true';
+      document.getElementById('menuDescInput').value = item.desc;
+      const currentImg = item.image || '';
+      document.getElementById('menuPhotoUrlInput').value = currentImg.startsWith('http') ? currentImg : '';
+      setProductPhotoPreview(currentImg);
+      document.getElementById('btnCancelEditMenu').classList.remove('hidden');
+    }
+
+    function resetMenuEditorForm() {
+      document.getElementById('menuFormHeading').textContent = 'Tambah Menu Baru';
+      document.getElementById('editMenuId').value = '';
+      document.getElementById('menuNameInput').value = '';
+      document.getElementById('menuPriceInput').value = '';
+      document.getElementById('menuStockInput').value = 'true';
+      document.getElementById('menuDescInput').value = '';
+      clearProductPhoto();
+      document.getElementById('btnCancelEditMenu').classList.add('hidden');
+    }
+
+    function toggleMenuAvailability(menuId) {
+      const item = menus.find((m) => m.id === menuId);
+      if (!item) return;
+      item.available = item.available === false ? true : false;
+      savePersistedState('MENUS_UPDATED');
+      renderMenuCatalog();
+      renderAdminMenuManager();
+    }
+
+    function removeMenuItem(menuId) {
+      menus = menus.filter((m) => m.id !== menuId);
+      savePersistedState('MENUS_UPDATED');
+      renderMenuCatalog();
+      renderAdminMenuManager();
+    }
+
+    function resetDefaultMenus() {
+      menus = JSON.parse(JSON.stringify(INITIAL_MENUS));
+      savePersistedState('MENUS_UPDATED');
+      resetMenuEditorForm();
+      renderMenuCatalog();
+      renderAdminMenuManager();
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('footerPaymentUrlCode').textContent = PAYMENT_PAGE_URL;
+      if (LIVE_SYNC_URL) {
+        document.getElementById('liveSyncStatusText').innerHTML =
+          '<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse-dot"></span>Live Sync Cloud + Lokal Aktif';
+      }
+      loadPersistedState();
+      setupLiveSyncListeners();
+      renderCategoryTabs();
+      renderMenuCatalog();
+      renderOrderTrackerCard();
+      updateCartCounters();
+      refreshAdminBadge();
+      pullOrdersFromCloud(false);
+    });
+  </script>
+</body>
+</html>
